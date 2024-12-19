@@ -1153,6 +1153,7 @@ sentinel:
   ## @param sentinel.image.pullSecrets Redis&reg; Sentinel image pull secrets
   ## @param sentinel.image.debug Enable image debug mode
   ##
+
   image:
     registry: docker.io
     repository: bitnami/redis-sentinel
@@ -2268,3 +2269,23 @@ useExternalDNS:
   suffix: ""
   annotationKey: external-dns.alpha.kubernetes.io/
   additionalAnnotations: {}
+
+
+# ciliumNetworkPolicy:
+#   enabled: true
+#   monitoringNamespace: "tools-observe"
+#   acrossNamespaces: true
+#   additionalIngress:
+#     - fromEndpoints:
+#         - matchLabels:
+#             app: myapp
+#             io.kubernetes.pod.namespace: customer-xxxx
+#       toPorts:
+#         - ports:
+#             - port: "6379"
+#               protocol: TCP
+#         - ports:
+#             - port: "26379"
+#               protocol: TCP
+#   # Règles egress additionnelles
+#   additionalEgress: {}

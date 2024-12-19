@@ -1,0 +1,75 @@
+{{- if .Values.ciliumNetworkPolicy.enabled  }}
+apiVersion: cilium.io/v2
+{{- if .Values.ciliumNetworkPolicy.acrossNamespaces }}
+kind: CiliumClusterwideNetworkPolicy
+{{- else }}
+kind: CiliumNetworkPolicy
+{{- end}}
+metadata:
+  {{- if .Values.ciliumNetworkPolicy.acrossNamespaces }}
+  name: {{ .Release.Namespace }}-redis-bitnami-policy
+  {{- else }}
+  name: {{ .Release.Name }}-redis-bitnami-policy
+  {{- end}}
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      io.kubernetes.pod.namespace: {{ .Release.Namespace }}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+    # Allow outbound connections to other cluster pods on sentinel port and redis port
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/instance: {{ .Release.Name }}
+            app.kubernetes.io/component: node
+      toPorts:
+        - ports:
+            - port: "26379"
+              protocol: TCP
+            - port: "6379"
+              protocol: TCP
+    # Allow outbound connections to other cluster pods on sentinel port (for standalone sentinel)
+    - toEndpoints:
+        - matchLabels:
+            app: redis-replication
+            {{- if .Values.ciliumNetworkPolicy.onlyBackend }}
+            io.kubernetes.pod.namespace: {{ .Release.Namespace }}
+            {{- end}}
+      toPorts:
+        - ports:
+            - port: "26379"
+              protocol: TCP
+    {{- if .Values.ciliumNetworkPolicy.additionalEgress }}
+    {{- toYaml .Values.ciliumNetworkPolicy.additionalEgress | nindent 4 }}
+    {{- end }}
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: prometheus
+            io.kubernetes.pod.namespace: {{ .Values.ciliumNetworkPolicy.monitoringNamespace }}
+      toPorts:
+        - ports:
+            - port: {{ .Values.metrics.containerPorts.http | quote }}
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/instance: {{ .Release.Name }}
+      toPorts:
+        - ports:
+            - port: "26379"
+              protocol: TCP
+            - port: "6379"
+              protocol: TCP
+    {{- if .Values.ciliumNetworkPolicy.additionalIngress }}
+    {{- toYaml .Values.ciliumNetworkPolicy.additionalIngress | nindent 4 }}
+    {{- end }}
+
+{{- end }}

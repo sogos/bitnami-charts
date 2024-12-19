@@ -335,7 +335,7 @@ data:
             sentinel_info_command="{{- if and .Values.auth.enabled .Values.auth.sentinel }}REDISCLI_AUTH="\$REDIS_PASSWORD" {{ end }}timeout {{ .Values.sentinel.getMasterTimeout }} redis-cli -h $REDIS_SERVICE -p $SENTINEL_SERVICE_PORT sentinel get-master-addr-by-name {{ .Values.sentinel.masterSet }}"
         fi
         info "about to run the command: $sentinel_info_command"
-        retry_while "eval $sentinel_info_command" 2 5
+        retry_while "eval $sentinel_info_command" 2 10
     }
 
     [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
@@ -354,6 +354,7 @@ data:
         REDIS_MASTER_HOST=${REDIS_SENTINEL_INFO[0]}
         REDIS_MASTER_PORT_NUMBER=${REDIS_SENTINEL_INFO[1]}
     else
+        echo "Failed to get master info from sentinel, failback from persisted configuration"
         REDIS_MASTER_HOST="$master_in_persisted_conf"
         REDIS_MASTER_PORT_NUMBER="$REDISPORT"
     fi
@@ -362,6 +363,8 @@ data:
     else
         export REDIS_REPLICATION_MODE="replica"
     fi
+    echo "REDIS_REPLICATION_MODE=$REDIS_REPLICATION_MODE"
+    echo "REDIS_MASTER_HOST=$REDIS_MASTER_HOST"
 
     {{- if or .Values.sentinel.masterService.enabled .Values.sentinel.service.createMaster }}
     if [[ "${REDIS_REPLICATION_MODE}" == "master" ]]; then
@@ -391,6 +394,10 @@ data:
         # Prevent incorrect configuration to be written to sentinel.conf
         error "Redis master host is configured incorrectly (host: $REDIS_MASTER_HOST, port: $REDIS_MASTER_PORT_NUMBER)"
         exit 1
+    fi
+
+    if [[ "$REDIS_SENTINEL_STANDALONE" == "true" ]]; then
+        REDIS_MASTER_HOST={{ template "common.names.fullname" . }}-node-0.$HEADLESS_SERVICE
     fi
 
     sentinel_conf_set "sentinel monitor" "{{ .Values.sentinel.masterSet }} "$REDIS_MASTER_HOST" "$REDIS_MASTER_PORT_NUMBER" {{ .Values.sentinel.quorum }}"
