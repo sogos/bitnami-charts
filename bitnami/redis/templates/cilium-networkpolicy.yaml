@@ -7,7 +7,7 @@ kind: CiliumNetworkPolicy
 {{- end}}
 metadata:
   {{- if .Values.ciliumNetworkPolicy.acrossNamespaces }}
-  name: {{ .Release.Namespace }}-redis-bitnami-policy
+  name: {{ .Release.Namespace }}-bitnami-policy
   {{- else }}
   name: {{ .Release.Name }}-redis-bitnami-policy
   {{- end}}
