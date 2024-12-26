@@ -266,13 +266,6 @@ spec:
             - name: redis-password
               mountPath: /opt/bitnami/redis/secrets/
             {{- end }}
-            - name: redis-data
-              mountPath: {{ .Values.replica.persistence.path }}
-              {{- if .Values.replica.persistence.subPath }}
-              subPath: {{ .Values.replica.persistence.subPath }}
-              {{- else if .Values.replica.persistence.subPathExpr }}
-              subPathExpr: {{ .Values.replica.persistence.subPathExpr }}
-              {{- end }}
             - name: config
               mountPath: /opt/bitnami/redis-sentinel/mounted-etc
             {{- if .Values.tls.enabled }}
@@ -340,13 +333,6 @@ spec:
             - name: empty-dir
               mountPath: /tmp
               subPath: tmp-dir
-            - name: redis-data
-              mountPath: {{ .Values.replica.persistence.path }}
-              {{- if .Values.replica.persistence.subPath }}
-              subPath: {{ .Values.replica.persistence.subPath }}
-              {{- else if .Values.replica.persistence.subPathExpr }}
-              subPathExpr: {{ .Values.replica.persistence.subPathExpr }}
-              {{- end }}
         {{- end }}
         {{- if .Values.sysctl.enabled }}
         - name: init-sysctl
@@ -448,23 +434,7 @@ spec:
             secretName: {{ include "redis.tlsSecretName" . }}
             defaultMode: 256
         {{- end }}
-  {{- if not .Values.replica.persistence.enabled }}
-        - name: redis-data
-          {{- if or .Values.replica.persistence.medium .Values.replica.persistence.sizeLimit }}
-          emptyDir:
-            {{- if .Values.replica.persistence.medium }}
-            medium: {{ .Values.replica.persistence.medium | quote }}
-            {{- end }}
-            {{- if .Values.replica.persistence.sizeLimit }}
-            sizeLimit: {{ .Values.replica.persistence.sizeLimit | quote }}
-            {{- end }}
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
-  {{- else if .Values.replica.persistence.existingClaim }}
-        - name: redis-data
-          persistentVolumeClaim:
-            claimName: {{ printf "%s" (tpl .Values.replica.persistence.existingClaim .) }}
+
   {{- else }}
   {{- if .Values.sentinel.persistentVolumeClaimRetentionPolicy.enabled }}
   persistentVolumeClaimRetentionPolicy:
@@ -472,27 +442,6 @@ spec:
     whenScaled: {{ .Values.sentinel.persistentVolumeClaimRetentionPolicy.whenScaled }}
   {{- end }}
   volumeClaimTemplates:
-    - apiVersion: v1
-      kind: PersistentVolumeClaim
-      metadata:
-        name: redis-data
-        labels: {{- include "common.labels.matchLabels" ( dict "customLabels" .Values.commonLabels "context" $ ) | nindent 10 }}
-          app.kubernetes.io/component: node
-        {{- if .Values.replica.persistence.annotations }}
-        annotations: {{- toYaml .Values.replica.persistence.annotations | nindent 10 }}
-        {{- end }}
-      spec:
-        accessModes:
-        {{- range .Values.replica.persistence.accessModes }}
-          - {{ . | quote }}
-        {{- end }}
-        resources:
-          requests:
-            storage: {{ .Values.replica.persistence.size | quote }}
-        {{- if .Values.replica.persistence.selector }}
-        selector: {{- include "common.tplvalues.render" ( dict "value" .Values.replica.persistence.selector "context" $) | nindent 10 }}
-        {{- end }}
-        {{- include "common.storage.class" (dict "persistence" .Values.replica.persistence "global" .Values.global) | nindent 8 }}
     {{- if .Values.sentinel.persistence.enabled }}
     - apiVersion: v1
       kind: PersistentVolumeClaim
